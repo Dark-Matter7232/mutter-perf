@@ -105,12 +105,6 @@ is_sibling (MetaWaylandSurface *surface,
   return surface != sibling && surface->sub.parent == sibling->sub.parent;
 }
 
-static gboolean
-is_surface_effectively_synchronized (MetaWaylandSurface *surface)
-{
-  return meta_wayland_surface_should_cache_state (surface);
-}
-
 void
 meta_wayland_subsurface_parent_state_applied (MetaWaylandSubsurface *subsurface)
 {
@@ -127,7 +121,7 @@ meta_wayland_subsurface_parent_state_applied (MetaWaylandSubsurface *subsurface)
       surface->sub.pending_pos = FALSE;
     }
 
-  if (is_surface_effectively_synchronized (surface))
+  if (meta_wayland_surface_is_synchronized (surface))
     meta_wayland_surface_apply_cached_state (surface);
 
   meta_wayland_actor_surface_sync_actor_state (actor_surface);
@@ -208,7 +202,7 @@ meta_wayland_subsurface_get_window (MetaWaylandSurfaceRole *surface_role)
 }
 
 static gboolean
-meta_wayland_subsurface_should_cache_state (MetaWaylandSurfaceRole *surface_role)
+meta_wayland_subsurface_is_synchronized (MetaWaylandSurfaceRole *surface_role)
 {
   MetaWaylandSurface *surface =
     meta_wayland_surface_role_get_surface (surface_role);
@@ -219,7 +213,7 @@ meta_wayland_subsurface_should_cache_state (MetaWaylandSurfaceRole *surface_role
 
   parent = surface->sub.parent;
   if (parent)
-    return meta_wayland_surface_should_cache_state (parent);
+    return meta_wayland_surface_is_synchronized (parent);
 
   return TRUE;
 }
@@ -289,7 +283,7 @@ meta_wayland_subsurface_class_init (MetaWaylandSubsurfaceClass *klass)
   surface_role_class->assigned = meta_wayland_subsurface_assigned;
   surface_role_class->get_toplevel = meta_wayland_subsurface_get_toplevel;
   surface_role_class->get_window = meta_wayland_subsurface_get_window;
-  surface_role_class->should_cache_state = meta_wayland_subsurface_should_cache_state;
+  surface_role_class->is_synchronized = meta_wayland_subsurface_is_synchronized;
   surface_role_class->notify_subsurface_state_changed =
     meta_wayland_subsurface_notify_subsurface_state_changed;
 
@@ -468,7 +462,7 @@ wl_subsurface_set_desync (struct wl_client   *client,
     return;
 
   is_parent_effectively_synchronized =
-    is_surface_effectively_synchronized (surface->sub.parent);
+    meta_wayland_surface_is_synchronized (surface->sub.parent);
 
   if (!is_parent_effectively_synchronized)
     meta_wayland_surface_apply_cached_state (surface);
