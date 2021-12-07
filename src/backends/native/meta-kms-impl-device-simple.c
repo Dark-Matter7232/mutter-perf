@@ -470,6 +470,8 @@ process_mode_set (MetaKmsImplDevice  *impl_device,
       return FALSE;
     }
 
+  meta_kms_crtc_on_scanout_started (crtc);
+
   if (drm_mode)
     {
       g_hash_table_replace (impl_device_simple->cached_mode_sets,
@@ -858,6 +860,8 @@ mode_set_fallback (MetaKmsImplDeviceSimple  *impl_device_simple,
                    g_strerror (-ret));
       return FALSE;
     }
+
+  meta_kms_crtc_on_scanout_started (crtc);
 
   if (!impl_device_simple->mode_set_fallback_feedback_source)
     {
