@@ -122,7 +122,6 @@ json_glib_dep = dependency('json-glib-1.0', version: json_glib_req)
 xkbcommon_dep = dependency('xkbcommon', version: xkbcommon_req)
 ice_dep = dependency('ice')
 atk_dep = dependency('atk', version: atk_req)
-libcanberra_dep = dependency('libcanberra', version: libcanberra_req)
 dbus_dep = dependency('dbus-1')
 
 have_wayland = get_option('wayland')
@@ -164,6 +163,11 @@ endif
 have_gnome_desktop = get_option('libgnome_desktop')
 if have_gnome_desktop
   gnome_desktop_dep = dependency('gnome-desktop-3.0')
+endif
+
+have_sound_player = get_option('sound_player')
+if have_sound_player
+  libcanberra_dep = dependency('libcanberra', version: libcanberra_req)
 endif
 
 have_gl = get_option('opengl')
@@ -487,6 +491,7 @@ cdata.set('HAVE_LIBSYSTEMD', have_libsystemd)
 cdata.set('HAVE_NATIVE_BACKEND', have_native_backend)
 cdata.set('HAVE_REMOTE_DESKTOP', have_remote_desktop)
 cdata.set('HAVE_GNOME_DESKTOP', have_gnome_desktop)
+cdata.set('HAVE_SOUND_PLAYER', have_sound_player)
 cdata.set('HAVE_EGL_DEVICE', have_egl_device)
 cdata.set('HAVE_WAYLAND_EGLSTREAM', have_wayland_eglstream)
 cdata.set('HAVE_LIBGUDEV', have_libgudev)
@@ -644,6 +649,7 @@ summary('Native Backend', have_native_backend, section: 'Options')
 summary('EGL Device', have_egl_device, section: 'Options')
 summary('Remote desktop', have_remote_desktop, section: 'Options')
 summary('libgnome-desktop', have_gnome_desktop, section: 'Options')
+summary('Sound player', have_sound_player, section: 'Options')
 summary('gudev', have_libgudev, section: 'Options')
 summary('Wacom', have_libwacom, section: 'Options')
 summary('SM', have_sm, section: 'Options')
