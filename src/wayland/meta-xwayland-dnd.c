@@ -730,7 +730,7 @@ pick_drop_surface (MetaWaylandCompositor *compositor,
                                                                workspace,
                                                                NULL,
                                                                pos.x, pos.y);
-  return focus_window ? focus_window->surface : NULL;
+  return focus_window ? meta_window_get_wayland_surface (focus_window) : NULL;
 }
 
 static void

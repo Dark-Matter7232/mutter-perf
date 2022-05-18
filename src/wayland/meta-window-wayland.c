@@ -44,11 +44,24 @@
 #include "wayland/meta-wayland-window-configuration.h"
 #include "wayland/meta-wayland-xdg-shell.h"
 
+enum
+{
+  PROP_0,
+
+  PROP_SURFACE,
+
+  PROP_LAST
+};
+
+static GParamSpec *obj_props[PROP_LAST];
+
 struct _MetaWindowWayland
 {
   MetaWindow parent;
 
   int geometry_scale;
+
+  MetaWaylandSurface *surface;
 
   GList *pending_configurations;
   gboolean has_pending_state_change;
@@ -110,7 +123,7 @@ meta_window_wayland_manage (MetaWindow *window)
                                    0);
   }
 
-  meta_wayland_surface_window_managed (window->surface, window);
+  meta_wayland_surface_window_managed (wl_window->surface, window);
 }
 
 static void
@@ -129,20 +142,24 @@ static void
 meta_window_wayland_ping (MetaWindow *window,
                           guint32     serial)
 {
-  meta_wayland_surface_ping (window->surface, serial);
+  MetaWindowWayland *wl_window = META_WINDOW_WAYLAND (window);
+
+  meta_wayland_surface_ping (wl_window->surface, serial);
 }
 
 static void
 meta_window_wayland_delete (MetaWindow *window,
                             guint32     timestamp)
 {
-  meta_wayland_surface_delete (window->surface);
+  MetaWindowWayland *wl_window = META_WINDOW_WAYLAND (window);
+
+  meta_wayland_surface_delete (wl_window->surface);
 }
 
 static void
 meta_window_wayland_kill (MetaWindow *window)
 {
-  MetaWaylandSurface *surface = window->surface;
+  MetaWaylandSurface *surface = meta_window_get_wayland_surface (window);
   struct wl_resource *resource = surface->resource;
 
   /* Send the client an unrecoverable error to kill the client. */
@@ -168,9 +185,7 @@ static void
 meta_window_wayland_configure (MetaWindowWayland              *wl_window,
                                MetaWaylandWindowConfiguration *configuration)
 {
-  MetaWindow *window = META_WINDOW (wl_window);
-
-  meta_wayland_surface_configure_notify (window->surface, configuration);
+  meta_wayland_surface_configure_notify (wl_window->surface, configuration);
 
   wl_window->pending_configurations =
     g_list_prepend (wl_window->pending_configurations, configuration);
@@ -358,7 +373,7 @@ meta_window_wayland_move_resize_internal (MetaWindow                *window,
           int bounds_width;
           int bounds_height;
 
-          if (!meta_wayland_surface_get_buffer (window->surface) &&
+          if (!meta_wayland_surface_get_buffer (wl_window->surface) &&
               !META_WINDOW_MAXIMIZED (window) &&
               window->tile_mode == META_TILE_NONE &&
               !meta_window_is_fullscreen (window))
@@ -469,6 +484,7 @@ meta_window_wayland_update_main_monitor (MetaWindow                   *window,
   MetaBackend *backend = meta_get_backend ();
   MetaMonitorManager *monitor_manager =
     meta_backend_get_monitor_manager (backend);
+  MetaWindowWayland *wl_window = META_WINDOW_WAYLAND (window);
   MetaWindow *toplevel_window;
   MetaLogicalMonitor *from;
   MetaLogicalMonitor *to;
@@ -481,7 +497,7 @@ meta_window_wayland_update_main_monitor (MetaWindow                   *window,
 
   /* If the window is not a toplevel window (i.e. it's a popup window) just use
    * the monitor of the toplevel. */
-  toplevel_window = meta_wayland_surface_get_toplevel_window (window->surface);
+  toplevel_window = meta_wayland_surface_get_toplevel_window (wl_window->surface);
   if (toplevel_window != window)
     {
       meta_window_update_monitor (toplevel_window, flags);
@@ -599,7 +615,7 @@ meta_window_wayland_main_monitor_changed (MetaWindow               *window,
                                         window,
                                         TRUE);
 
-  surface = window->surface;
+  surface = wl_window->surface;
   if (surface)
     {
       MetaWaylandActorSurface *actor_surface =
@@ -615,7 +631,7 @@ meta_window_wayland_main_monitor_changed (MetaWindow               *window,
 static pid_t
 meta_window_wayland_get_client_pid (MetaWindow *window)
 {
-  MetaWaylandSurface *surface = window->surface;
+  MetaWaylandSurface *surface = meta_window_get_wayland_surface (window);
   struct wl_resource *resource = surface->resource;
   pid_t pid;
 
@@ -695,7 +711,8 @@ meta_window_wayland_can_ping (MetaWindow *window)
 static gboolean
 meta_window_wayland_is_stackable (MetaWindow *window)
 {
-  return meta_wayland_surface_get_buffer (window->surface) != NULL;
+  MetaWindowWayland *wl_window = META_WINDOW_WAYLAND (window);
+  return meta_wayland_surface_get_buffer (wl_window->surface) != NULL;
 }
 
 static gboolean
@@ -710,6 +727,14 @@ static gboolean
 meta_window_wayland_is_focus_async (MetaWindow *window)
 {
   return FALSE;
+}
+
+static MetaWaylandSurface *
+meta_window_wayland_get_wayland_surface (MetaWindow *window)
+{
+  MetaWindowWayland *wl_window = META_WINDOW_WAYLAND (window);
+
+  return wl_window->surface;
 }
 
 static MetaStackLayer
@@ -769,12 +794,52 @@ meta_window_wayland_finalize (GObject *object)
 }
 
 static void
+meta_window_wayland_get_property (GObject    *object,
+                                  guint       prop_id,
+                                  GValue     *value,
+                                  GParamSpec *pspec)
+{
+  MetaWindowWayland *window = META_WINDOW_WAYLAND (object);
+
+  switch (prop_id)
+    {
+    case PROP_SURFACE:
+      g_value_set_object (value, window->surface);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
+static void
+meta_window_wayland_set_property (GObject      *object,
+                                  guint         prop_id,
+                                  const GValue *value,
+                                  GParamSpec   *pspec)
+{
+  MetaWindowWayland *window = META_WINDOW_WAYLAND (object);
+
+  switch (prop_id)
+    {
+    case PROP_SURFACE:
+      window->surface = g_value_get_object (value);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
+static void
 meta_window_wayland_class_init (MetaWindowWaylandClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   MetaWindowClass *window_class = META_WINDOW_CLASS (klass);
 
   object_class->finalize = meta_window_wayland_finalize;
+  object_class->get_property = meta_window_wayland_get_property;
+  object_class->set_property = meta_window_wayland_set_property;
   object_class->constructed = meta_window_wayland_constructed;
 
   window_class->manage = meta_window_wayland_manage;
@@ -799,6 +864,16 @@ meta_window_wayland_class_init (MetaWindowWaylandClass *klass)
   window_class->map = meta_window_wayland_map;
   window_class->unmap = meta_window_wayland_unmap;
   window_class->is_focus_async = meta_window_wayland_is_focus_async;
+  window_class->get_wayland_surface = meta_window_wayland_get_wayland_surface;
+
+  obj_props[PROP_SURFACE] =
+    g_param_spec_object ("surface",
+                         "Surface",
+                         "The corresponding Wayland surface",
+                         META_TYPE_WAYLAND_SURFACE,
+                         G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE);
+
+  g_object_class_install_properties (object_class, PROP_LAST, obj_props);
 }
 
 MetaWindow *

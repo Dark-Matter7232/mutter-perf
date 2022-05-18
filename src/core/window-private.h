@@ -169,7 +169,6 @@ struct _MetaWindow
   MetaLogicalMonitor *monitor;
   MetaWorkspace *workspace;
   MetaWindowClientType client_type;
-  MetaWaylandSurface *surface;
   Window xwindow;
   /* may be NULL! not all windows get decorated */
   MetaFrame *frame;
@@ -618,6 +617,10 @@ struct _MetaWindowClass
 
   MetaStackLayer (*calculate_layer) (MetaWindow *window);
 
+#ifdef HAVE_WAYLAND
+  MetaWaylandSurface * (*get_wayland_surface) (MetaWindow *window);
+#endif
+
   void (* map)   (MetaWindow *window);
   void (* unmap) (MetaWindow *window);
 };
@@ -720,6 +723,10 @@ gboolean meta_window_is_focusable (MetaWindow *window);
 gboolean meta_window_can_ping (MetaWindow *window);
 
 MetaStackLayer meta_window_calculate_layer (MetaWindow *window);
+
+#ifdef HAVE_WAYLAND
+MetaWaylandSurface * meta_window_get_wayland_surface (MetaWindow *window);
+#endif
 
 void     meta_window_current_workspace_changed (MetaWindow *window);
 
