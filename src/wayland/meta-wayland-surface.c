@@ -51,8 +51,11 @@
 #include "wayland/meta-wayland-viewporter.h"
 #include "wayland/meta-wayland-xdg-shell.h"
 #include "wayland/meta-window-wayland.h"
+
+#ifdef HAVE_XWAYLAND
 #include "wayland/meta-xwayland-private.h"
 #include "wayland/meta-xwayland-private.h"
+#endif
 
 enum
 {
@@ -1534,7 +1537,9 @@ meta_wayland_surface_create (MetaWaylandCompositor *compositor,
 
   wl_list_init (&surface->presentation_time.feedback_list);
 
+#ifdef HAVE_XWAYLAND
   meta_wayland_compositor_notify_surface_id (compositor, id, surface);
+#endif
 
   return surface;
 }

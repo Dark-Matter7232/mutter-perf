@@ -67,7 +67,7 @@
 #include "x11/window-props.h"
 #include "x11/xprops.h"
 
-#ifdef HAVE_WAYLAND
+#ifdef HAVE_XWAYLAND
 #include "wayland/meta-xwayland-private.h"
 #endif
 
@@ -1007,7 +1007,7 @@ set_work_area_hint (MetaDisplay    *display,
 const gchar *
 meta_x11_get_display_name (void)
 {
-#ifdef HAVE_WAYLAND
+#ifdef HAVE_XWAYLAND
   if (meta_is_wayland_compositor ())
     {
       MetaWaylandCompositor *compositor;
@@ -1171,7 +1171,7 @@ meta_x11_display_new (MetaDisplay *display, GError **error)
 
   XSynchronize (xdisplay, meta_context_is_x11_sync (context));
 
-#ifdef HAVE_WAYLAND
+#ifdef HAVE_XWAYLAND
   if (meta_is_wayland_compositor ())
     {
       MetaWaylandCompositor *compositor =
