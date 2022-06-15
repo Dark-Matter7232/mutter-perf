@@ -994,6 +994,63 @@ meta_xwayland_stop_xserver (MetaXWaylandManager *manager)
   g_clear_object (&manager->proc);
 }
 
+static void
+meta_xwayland_connection_release (MetaXWaylandConnection *connection)
+{
+  unlink (connection->lock_file);
+  g_clear_pointer (&connection->lock_file, g_free);
+}
+
+static void
+meta_xwayland_shutdown (MetaWaylandCompositor *compositor)
+{
+  MetaXWaylandManager *manager = &compositor->xwayland_manager;
+#ifdef HAVE_XSETIOERROREXITHANDLER
+  MetaDisplay *display = meta_get_display ();
+  MetaX11Display *x11_display;
+#endif
+  char path[256];
+
+  g_cancellable_cancel (manager->xserver_died_cancellable);
+
+  XSetIOErrorHandler (x_io_error_noop);
+#ifdef HAVE_XSETIOERROREXITHANDLER
+  x11_display = display->x11_display;
+  if (x11_display)
+    {
+      XSetIOErrorExitHandler (meta_x11_display_get_xdisplay (x11_display),
+                              x_io_error_exit_noop, NULL);
+    }
+#endif
+
+  meta_xwayland_terminate (manager);
+
+  if (manager->public_connection.name)
+    {
+      snprintf (path, sizeof path, "%s%d", X11_TMP_UNIX_PATH,
+                manager->public_connection.display_index);
+      unlink (path);
+      g_clear_pointer (&manager->public_connection.name, g_free);
+    }
+
+  if (manager->private_connection.name)
+    {
+      snprintf (path, sizeof path, "%s%d", X11_TMP_UNIX_PATH,
+                manager->private_connection.display_index);
+      unlink (path);
+      g_clear_pointer (&manager->private_connection.name, g_free);
+    }
+
+  meta_xwayland_connection_release (&manager->public_connection);
+  meta_xwayland_connection_release (&manager->private_connection);
+
+  if (manager->auth_file)
+    {
+      unlink (manager->auth_file);
+      g_clear_pointer (&manager->auth_file, g_free);
+    }
+}
+
 gboolean
 meta_xwayland_init (MetaXWaylandManager    *manager,
                     MetaWaylandCompositor  *compositor,
@@ -1055,6 +1112,10 @@ meta_xwayland_init (MetaXWaylandManager    *manager,
         g_unix_fd_add (manager->public_connection.unix_fd, G_IO_IN,
                        xdisplay_connection_activity_cb, manager);
     }
+
+  if (policy != META_X11_DISPLAY_POLICY_DISABLED)
+    g_signal_connect (compositor, "prepare-shutdown", 
+                      G_CALLBACK (meta_xwayland_shutdown), NULL);
 
   return TRUE;
 }
@@ -1139,62 +1200,6 @@ meta_xwayland_setup_xdisplay (MetaXWaylandManager *manager,
   XFixesSetClientDisconnectMode (xdisplay, XFixesClientDisconnectFlagTerminate);
 
   add_local_user_to_xhost (xdisplay);
-}
-
-static void
-meta_xwayland_connection_release (MetaXWaylandConnection *connection)
-{
-  unlink (connection->lock_file);
-  g_clear_pointer (&connection->lock_file, g_free);
-}
-
-void
-meta_xwayland_shutdown (MetaXWaylandManager *manager)
-{
-#ifdef HAVE_XSETIOERROREXITHANDLER
-  MetaDisplay *display = meta_get_display ();
-  MetaX11Display *x11_display;
-#endif
-  char path[256];
-
-  g_cancellable_cancel (manager->xserver_died_cancellable);
-
-  XSetIOErrorHandler (x_io_error_noop);
-#ifdef HAVE_XSETIOERROREXITHANDLER
-  x11_display = display->x11_display;
-  if (x11_display)
-    {
-      XSetIOErrorExitHandler (meta_x11_display_get_xdisplay (x11_display),
-                              x_io_error_exit_noop, NULL);
-    }
-#endif
-
-  meta_xwayland_terminate (manager);
-
-  if (manager->public_connection.name)
-    {
-      snprintf (path, sizeof path, "%s%d", X11_TMP_UNIX_PATH,
-                manager->public_connection.display_index);
-      unlink (path);
-      g_clear_pointer (&manager->public_connection.name, g_free);
-    }
-
-  if (manager->private_connection.name)
-    {
-      snprintf (path, sizeof path, "%s%d", X11_TMP_UNIX_PATH,
-                manager->private_connection.display_index);
-      unlink (path);
-      g_clear_pointer (&manager->private_connection.name, g_free);
-    }
-
-  meta_xwayland_connection_release (&manager->public_connection);
-  meta_xwayland_connection_release (&manager->private_connection);
-
-  if (manager->auth_file)
-    {
-      unlink (manager->auth_file);
-      g_clear_pointer (&manager->auth_file, g_free);
-    }
 }
 
 static void
