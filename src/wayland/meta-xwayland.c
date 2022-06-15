@@ -1117,6 +1117,11 @@ meta_xwayland_init (MetaXWaylandManager    *manager,
     g_signal_connect (compositor, "prepare-shutdown", 
                       G_CALLBACK (meta_xwayland_shutdown), NULL);
 
+  /* Xwayland specific protocol, needs to be filtered out for all other clients */
+  meta_xwayland_grab_keyboard_init (compositor);
+  wl_display_set_global_filter (compositor->wayland_display,
+                                meta_xwayland_global_filter,
+                                compositor);
   return TRUE;
 }
 

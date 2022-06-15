@@ -621,14 +621,6 @@ meta_wayland_compositor_new (MetaContext *context)
   meta_wayland_init_presentation_time (compositor);
   meta_wayland_activation_init (compositor);
 
-#ifdef HAVE_XWAYLAND
-  /* Xwayland specific protocol, needs to be filtered out for all other clients */
-  if (meta_xwayland_grab_keyboard_init (compositor))
-    wl_display_set_global_filter (compositor->wayland_display,
-                                  meta_xwayland_global_filter,
-                                  compositor);
-#endif
-
 #ifdef HAVE_WAYLAND_EGLSTREAM
   {
     gboolean should_enable_eglstream_controller = TRUE;
