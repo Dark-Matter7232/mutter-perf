@@ -175,7 +175,7 @@ meta_wayland_subsurface_get_window (MetaWaylandSurfaceRole *surface_role)
     meta_wayland_surface_role_get_surface (surface_role);
   MetaWaylandSurface *parent;
 
-  parent = surface->sub.parent;
+  parent = surface->protocol_state.parent;
   if (parent)
     return meta_wayland_surface_get_window (parent);
   else
